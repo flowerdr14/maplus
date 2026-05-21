@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with roles and approval states.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "birthdate": { "type": "string" },
+        "password": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["reader", "admin"] },
+        "joinPath": { "type": "string" },
+        "adminRequest": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+      },
+      "required": ["id", "name", "birthdate", "phone", "role", "joinPath"]
+    },
+    "Article": {
+      "title": "Article",
+      "description": "An article or blog post written by admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string", "enum": ["전체일보", "원내소식", "업데이트", "단체소식"] },
+        "subCategory": { "type": "string" },
+        "sidebarCategory": { "type": "string" },
+        "views": { "type": "integer" },
+        "author": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "isDraft": { "type": "boolean" },
+        "isPrivate": { "type": "boolean" },
+        "isPreRelease": { "type": "boolean" },
+        "password": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "commentsCount": { "type": "integer" }
+      },
+      "required": ["id", "title", "content", "category", "views", "author", "authorId", "createdAt", "isDraft", "isPrivate", "commentsCount"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comments on articles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "articleId": { "type": "string" },
+        "author": { "type": "string" },
+        "authorId": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "replies": {
+          "type": "array"
+        }
+      },
+      "required": ["id", "articleId", "author", "authorId", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "App users and credentials"
+    },
+    "articles/{articleId}": {
+      "schema": "Article",
+      "description": "Articles listing"
+    },
+    "comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments left on articles"
+    }
+  }
+}

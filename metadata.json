@@ -1,0 +1,6 @@
+{
+  "name": "MaplUS+ 메이플러스 일보",
+  "description": "신문 기사를 작성 및 관리하고 열람할 수 있는 종합 디지털 신문 서비스",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
