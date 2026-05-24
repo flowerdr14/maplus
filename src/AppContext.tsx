@@ -5,15 +5,17 @@ import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, get
 import { db, handleFirestoreError, OperationType, cleanUndefined } from './firebase';
 
 export const getKSTTimestamp = () => {
-  try {
-    // Generates format: "2026-05-24 13:40 KT"
-    return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16) + ' KT';
-  } catch (err) {
-    const date = new Date();
-    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-    const kst = new Date(utc + (9 * 60 * 60 * 1000));
-    return kst.toISOString().slice(0, 16).replace('T', ' ') + ' KT';
-  }
+  const now = new Date();
+  const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const kstDate = new Date(utcMs + (9 * 60 * 60 * 1000));
+  
+  const yyyy = kstDate.getFullYear();
+  const mm = String(kstDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(kstDate.getDate()).padStart(2, '0');
+  const hh = String(kstDate.getHours()).padStart(2, '0');
+  const min = String(kstDate.getMinutes()).padStart(2, '0');
+  
+  return `${yyyy}-${mm}-${dd} ${hh}:${min} KT`;
 };
 
 interface AppContextType {
