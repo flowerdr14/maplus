@@ -1,8 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Article, Comment, User, Reply } from './types';
+import { Article, Comment, User, Reply, Patient } from './types';
 import { INITIAL_USERS, INITIAL_ARTICLES, INITIAL_COMMENTS } from './mockData';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanUndefined } from './firebase';
+
+export const getKSTTimestamp = () => {
+  try {
+    // Generates format: "2026-05-24 13:40 KT"
+    return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16) + ' KT';
+  } catch (err) {
+    const date = new Date();
+    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+    const kst = new Date(utc + (9 * 60 * 60 * 1000));
+    return kst.toISOString().slice(0, 16).replace('T', ' ') + ' KT';
+  }
+};
 
 interface AppContextType {
   view: 'home' | 'login' | 'join' | 'list' | 'write' | 'detail' | 'mypage';
@@ -58,6 +70,12 @@ interface AppContextType {
   
   addComment: (articleId: string, content: string) => void;
   addReply: (commentId: string, content: string) => void;
+
+  // Patient CRUD
+  patients: Patient[];
+  addPatient: (name: string, birthdate: string, contact: string, affiliation: '일반' | '해솔병원' | '청송대병원', notes?: string) => Promise<Patient>;
+  updatePatient: (id: string, name: string, birthdate: string, contact: string, affiliation: '일반' | '해솔병원' | '청송대병원', notes?: string) => Promise<void>;
+  deletePatient: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -68,6 +86,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
   const [comments, setComments] = useState<Comment[]>(INITIAL_COMMENTS);
+  const [patients, setPatients] = useState<Patient[]>([]);
   
   const [activeTab, setActiveTab] = useState<AppContextType['activeTab']>('전체일보');
   const [selectedSidebarFilter, setSelectedSidebarFilter] = useState<string | null>(null);
@@ -117,10 +136,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       handleFirestoreError(error, OperationType.LIST, 'comments');
     });
 
+    // 4. Patients real-time feed
+    const unsubPatients = onSnapshot(collection(db, 'patients'), (snapshot) => {
+      const list: Patient[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ ...doc.data() } as Patient);
+      });
+      setPatients(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'patients');
+    });
+
     return () => {
       unsubUsers();
       unsubArticles();
       unsubComments();
+      unsubPatients();
     };
   }, []);
 
@@ -178,6 +209,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (!existingCmtIds.has(cmt.id)) {
               await setDoc(doc(db, 'comments', cmt.id), cleanUndefined(cmt));
             }
+          }
+        }
+
+        // 4. Seed Patients if empty
+        const patientsSnap = await getDocs(collection(db, 'patients'));
+        if (patientsSnap.empty) {
+          const mockPatients: Patient[] = [
+            {
+              id: 'pat-1',
+              name: '김태희',
+              birthdate: '1980-03-29',
+              contact: '010-4444-5555',
+              affiliation: '해솔병원',
+              notes: '매주 목요일 오전 외래 진료 예정',
+              createdAt: getKSTTimestamp()
+            },
+            {
+              id: 'pat-2',
+              name: '이순신',
+              birthdate: '1975-08-15',
+              contact: '010-7777-8888',
+              affiliation: '청송대병원',
+              notes: '정밀 영상 검사 대기중',
+              createdAt: getKSTTimestamp()
+            },
+            {
+              id: 'pat-3',
+              name: '홍길동',
+              birthdate: '1992-12-25',
+              contact: 'hong@gmail.com',
+              affiliation: '일반',
+              notes: '건강검진 접수 대기',
+              createdAt: getKSTTimestamp()
+            }
+          ];
+          for (const pat of mockPatients) {
+            await setDoc(doc(db, 'patients', pat.id), cleanUndefined(pat));
           }
         }
       } catch (err) {
@@ -248,11 +316,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('maplus_current_user');
-  };
-
   const addArticle = async (title: string, content: string, opts: {
     category: '전체일보' | '원내소식' | '업데이트' | '단체소식';
     subCategory?: '해솔' | '청송대';
@@ -282,7 +345,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       views: 0,
       author: currentUser ? currentUser.name : '방문자',
       authorId: currentUser ? currentUser.id : 'guest',
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      createdAt: getKSTTimestamp(),
       isDraft: opts.isDraft,
       isPrivate: opts.isPrivate,
       isPreRelease: opts.isPreRelease || false,
@@ -371,7 +434,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: currentUser ? currentUser.name : '방문자',
       authorId: currentUser ? currentUser.id : 'guest',
       content,
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      createdAt: getKSTTimestamp(),
       replies: []
     };
 
@@ -394,7 +457,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: currentUser ? currentUser.name : '방문자',
       authorId: currentUser ? currentUser.id : 'guest',
       content,
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+      createdAt: getKSTTimestamp()
     };
 
     try {
@@ -413,6 +476,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `comments/${commentId}`);
+    }
+  };
+
+  // Patients CRUD implementation
+  const addPatient = async (
+    name: string,
+    birthdate: string,
+    contact: string,
+    affiliation: '일반' | '해솔병원' | '청송대병원',
+    notes?: string
+  ): Promise<Patient> => {
+    const patId = `pat-${Date.now()}`;
+    const newPatient: Patient = {
+      id: patId,
+      name,
+      birthdate,
+      contact,
+      affiliation,
+      notes: notes || '',
+      createdAt: getKSTTimestamp()
+    };
+
+    try {
+      await setDoc(doc(db, 'patients', patId), cleanUndefined(newPatient));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `patients/${patId}`);
+    }
+    return newPatient;
+  };
+
+  const updatePatient = async (
+    id: string,
+    name: string,
+    birthdate: string,
+    contact: string,
+    affiliation: '일반' | '해솔병원' | '청송대병원',
+    notes?: string
+  ) => {
+    try {
+      const patRef = doc(db, 'patients', id);
+      const updateData: Partial<Patient> = {
+        name,
+        birthdate,
+        contact,
+        affiliation,
+        notes: notes || ''
+      };
+      await updateDoc(patRef, cleanUndefined(updateData));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `patients/${id}`);
+    }
+  };
+
+  const deletePatient = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'patients', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `patients/${id}`);
     }
   };
 
@@ -454,6 +575,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         incrementViews,
         addComment,
         addReply,
+        patients,
+        addPatient,
+        updatePatient,
+        deletePatient,
       }}
     >
       {children}

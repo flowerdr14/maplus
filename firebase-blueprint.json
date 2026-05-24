@@ -10,11 +10,13 @@
         "birthdate": { "type": "string" },
         "password": { "type": "string" },
         "phone": { "type": "string" },
-        "role": { "type": "string", "enum": ["reader", "admin"] },
+        "contact": { "type": "string" },
+        "role": { "type": "string", "enum": ["reader", "writer", "admin"] },
         "joinPath": { "type": "string" },
-        "adminRequest": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+        "adminRequest": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "affiliation": { "type": "string", "enum": ["일반", "해솔병원", "청송대병원"] }
       },
-      "required": ["id", "name", "birthdate", "phone", "role", "joinPath"]
+      "required": ["id", "name", "birthdate", "contact", "role", "joinPath"]
     },
     "Article": {
       "title": "Article",
@@ -56,6 +58,21 @@
         }
       },
       "required": ["id", "articleId", "author", "authorId", "content", "createdAt"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Information about patients under management.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "birthdate": { "type": "string" },
+        "contact": { "type": "string" },
+        "affiliation": { "type": "string", "enum": ["일반", "해솔병원", "청송대병원"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "birthdate", "contact", "affiliation", "createdAt"]
     }
   },
   "firestore": {
@@ -70,6 +87,10 @@
     "comments/{commentId}": {
       "schema": "Comment",
       "description": "Comments left on articles"
+    },
+    "patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patients records list"
     }
   }
 }

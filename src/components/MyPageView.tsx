@@ -1,20 +1,45 @@
 import React, { useState } from 'react';
 import { useApp } from '../AppContext';
-import { Search, User, ShieldAlert, FileText, CheckCircle, Eye, Check, X, ShieldCheck, Users } from 'lucide-react';
-import { Article } from '../types';
+import { Search, User, ShieldAlert, FileText, CheckCircle, Check, X, ShieldCheck, Users, Plus, Trash2, Edit } from 'lucide-react';
+import { Patient, User as UserType } from '../types';
 
 export const MyPageView: React.FC = () => {
-  const { currentUser, setCurrentUser, articles, setView, setSelectedArticleId, users, updateUsersList, updateUserProfile } = useApp();
+  const { 
+    currentUser, 
+    setCurrentUser, 
+    articles, 
+    setView, 
+    setSelectedArticleId, 
+    users, 
+    updateUsersList, 
+    updateUserProfile,
+    patients,
+    addPatient,
+    updatePatient,
+    deletePatient
+  } = useApp();
+  
   const [searchQuery, setSearchQuery] = useState('');
   
   // User Profile fields edit state
   const [name, setName] = useState(currentUser?.name || '');
   const [birthdate, setBirthdate] = useState(currentUser?.birthdate || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [contact, setContact] = useState(currentUser?.contact || currentUser?.phone || '');
   const [joinPath, setJoinPath] = useState(currentUser?.joinPath || '');
   const [pw, setPw] = useState(currentUser?.password || '');
   
   const [savedSuccessAlert, setSavedSuccessAlert] = useState(false);
+
+  // Patient Sub-Panel States (For Developer Admin Only)
+  const [patientSearch, setPatientSearch] = useState('');
+  const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
+  
+  const [patName, setPatName] = useState('');
+  const [patBirthdate, setPatBirthdate] = useState('');
+  const [patContact, setPatContact] = useState('');
+  const [patAffiliation, setPatAffiliation] = useState<'일반' | '해솔병원' | '청송대병원'>('일반');
+  const [patNotes, setPatNotes] = useState('');
+  const [patientAlert, setPatientAlert] = useState('');
 
   if (!currentUser) {
     return (
@@ -51,7 +76,8 @@ export const MyPageView: React.FC = () => {
       ...currentUser,
       name,
       birthdate,
-      phone,
+      phone: contact, // compatibility fallback
+      contact,
       joinPath,
       password: pw
     };
@@ -146,6 +172,78 @@ export const MyPageView: React.FC = () => {
     updateUsersList(updatedUsers);
   };
 
+  // Patients Form Submissions
+  const handlePatientSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!patName.trim() || !patBirthdate.trim() || !patContact.trim()) {
+      alert("환자의 이름, 생년월일, 연락처는 필수 입력 필요 사항입니다.");
+      return;
+    }
+
+    try {
+      if (editingPatientId) {
+        await updatePatient(editingPatientId, patName.trim(), patBirthdate, patContact.trim(), patAffiliation, patNotes.trim());
+        setPatientAlert("환자 정보가 안전하게 갱신되었습니다!");
+        setEditingPatientId(null);
+      } else {
+        await addPatient(patName.trim(), patBirthdate, patContact.trim(), patAffiliation, patNotes.trim());
+        setPatientAlert("새로운 환자 레코드가 정상적으로 등록되었습니다!");
+      }
+      // Reset
+      setPatName('');
+      setPatBirthdate('');
+      setPatContact('');
+      setPatAffiliation('일반');
+      setPatNotes('');
+      setTimeout(() => setPatientAlert(''), 2500);
+    } catch (err) {
+      alert("환자 정보를 데이터베이스에 반영하는 단계에서 에러가 발생하였습니다.");
+    }
+  };
+
+  const handleTriggerEditPatient = (pat: Patient) => {
+    setEditingPatientId(pat.id);
+    setPatName(pat.name);
+    setPatBirthdate(pat.birthdate);
+    setPatContact(pat.contact);
+    setPatAffiliation(pat.affiliation);
+    setPatNotes(pat.notes || '');
+  };
+
+  const handleTriggerDeletePatient = async (id: string) => {
+    if (confirm("정말로 이 환자의 원부 및 치료 로그를 영구 삭제하시겠습니까?")) {
+      try {
+        await deletePatient(id);
+        setPatientAlert("환자 원부가 정상적으로 삭제 처리되었습니다.");
+        setTimeout(() => setPatientAlert(''), 2500);
+      } catch (err) {
+        alert("처리에 실패하였습니다.");
+      }
+    }
+  };
+
+  // Affiliation Specific User Authority Filtering
+  // 1. "해솔병원" Admin manages only users signed up with "해솔병원"
+  // 2. "청송대병원" Admin manages only users signed up with "청송대병원"
+  // 3. "일반" Admin manages only users signed up with "일반"
+  // 4. "개발자" (id = 'admin') superadmin manages ALL users!
+  const filteredUsersList = users.filter((u: UserType) => {
+    if (currentUser.id === 'admin') return true; // Master developer manages everyone
+    return (u.affiliation || '일반') === (currentUser.affiliation || '일반');
+  });
+
+  // Patient List filtering according to search query
+  const filteredPatientsList = patients.filter((pat: Patient) => {
+    if (!patientSearch.trim()) return true;
+    const q = patientSearch.toLowerCase();
+    return (
+      pat.name.toLowerCase().includes(q) ||
+      pat.contact.toLowerCase().includes(q) ||
+      pat.affiliation.toLowerCase().includes(q) ||
+      (pat.notes && pat.notes.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="flex-1 p-6 bg-gray-50 overflow-y-auto" id="mypage-view-panel">
       
@@ -227,18 +325,31 @@ export const MyPageView: React.FC = () => {
             />
           </div>
 
-          {/* 전화번호 */}
+          {/* 연락처 */}
           <div className="flex items-center">
-            <label className="text-sm font-bold text-gray-800 w-24 text-right pr-3">전화번호:</label>
+            <label className="text-sm font-bold text-gray-800 w-24 text-right pr-3">연락처:</label>
             <input
               type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="연락처 기입 (전화번호 또는 이메일)"
               className="flex-1 border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500 font-semibold text-gray-900 text-sm"
             />
           </div>
 
-          {/* 회원유형 (Read only, styled like radio boxes as requested in Image 11) */}
+          {/* 소속 */}
+          <div className="flex items-center">
+            <label className="text-sm font-bold text-gray-800 w-24 text-right pr-3">소속:</label>
+            <input
+              type="text"
+              readOnly
+              value={currentUser.affiliation || '일반'}
+              title="소속 정보는 변경이 불가합니다"
+              className="flex-1 border border-gray-200 bg-neutral-100 rounded px-2.5 py-1.5 text-gray-650 font-semibold text-sm cursor-not-allowed"
+            />
+          </div>
+
+          {/* 회원유형 (Read only) */}
           <div className="flex items-center py-1">
             <label className="text-sm font-bold text-gray-800 w-24 text-right pr-3">회원유형:</label>
             <div className="flex items-center space-x-6 pl-2">
@@ -346,7 +457,7 @@ export const MyPageView: React.FC = () => {
                       >
                         <td className="py-2.5 px-3 text-center text-gray-500 font-bold">{userArticles.length - idx}</td>
                         <td className="py-2.5 px-3 font-semibold text-gray-805">
-                          <div className="flex items-center space-x-1">
+                           <div className="flex items-center space-x-1">
                             {art.isDraft && (
                               <span className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[9px] font-bold">임시저장</span>
                             )}
@@ -386,15 +497,17 @@ export const MyPageView: React.FC = () => {
               <div>
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <ShieldCheck className="text-orange-500" size={22} />
-                  [관리자 전용] 회원 권한 승인 및 관리
+                  [관리자 전용] {currentUser.id === 'admin' ? '총괄 ' : `${currentUser.affiliation || '일반'} `} 회원 권한 승인 및 관리
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">
-                  회원가입 완료 후 관리자 등급을 신청한 사용자들의 승인 처리를 조회 및 조율할 수 있습니다.
+                  {currentUser.id === 'admin' 
+                    ? '플랫폼의 모든 회원을 관리하고 등급을 조율할 수 있습니다.' 
+                    : `소속(${currentUser.affiliation || '일반'}) 회원들의 가입 및 등급 승인 신청을 전담하여 승인할 수 있습니다.`}
                 </p>
               </div>
               <div className="bg-black text-white px-3 py-1 rounded text-[11px] font-extrabold self-start sm:self-center flex items-center gap-1">
                 <Users size={12} />
-                총 회원 수: {users.length}명
+                관리 대상 회원 수: {filteredUsersList.length}명
               </div>
             </div>
 
@@ -404,8 +517,9 @@ export const MyPageView: React.FC = () => {
                   <tr className="bg-gray-100 text-[11px] font-extrabold text-gray-800 border-b border-gray-200">
                     <th className="py-2.5 px-3">이름</th>
                     <th className="py-2.5 px-3">아이디(ID)</th>
+                    <th className="py-2.5 px-3 font-medium">소속</th>
                     <th className="py-2.5 px-3 font-medium">생년월일</th>
-                    <th className="py-2.5 px-3 font-medium">전화번호</th>
+                    <th className="py-2.5 px-3 font-medium">연락처</th>
                     <th className="py-2.5 px-3 font-medium">가입경로</th>
                     <th className="py-2.5 px-3 text-center">현재 등급</th>
                     <th className="py-2.5 px-3 text-center">승인 신청 상태</th>
@@ -413,14 +527,20 @@ export const MyPageView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
-                  {users.map((u) => {
+                  {filteredUsersList.map((u) => {
                     const isPending = u.adminRequest === 'pending';
+                    const originalContact = u.contact || u.phone || '-';
                     return (
                       <tr key={u.id} className={`hover:bg-neutral-50 transition ${isPending ? 'bg-orange-50/40' : ''}`}>
                         <td className="py-3 px-3 font-extrabold text-gray-900">{u.name}</td>
                         <td className="py-3 px-3 font-mono text-gray-650 font-bold">{u.id}</td>
+                        <td className="py-3 px-3">
+                          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                            {u.affiliation || '일반'}
+                          </span>
+                        </td>
                         <td className="py-3 px-3 text-gray-500 font-medium">{u.birthdate}</td>
-                        <td className="py-3 px-3 text-gray-500 font-medium">{u.phone}</td>
+                        <td className="py-3 px-3 text-gray-650 font-semibold">{originalContact}</td>
                         <td className="py-3 px-3 text-gray-500 font-medium">{u.joinPath}</td>
                         <td className="py-3 px-3 text-center">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
@@ -513,6 +633,222 @@ export const MyPageView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Developer Exclusive Patient Management System */}
+        {currentUser.id === 'admin' && (
+          <div className="bg-white p-6 rounded-lg border border-red-200 bg-red-50/10 shadow-sm xl:col-span-12 space-y-6" id="mypage-developer-patients-panel">
+            
+            {/* Title Block */}
+            <div className="border-b-2 border-red-500 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xl font-black text-rose-950 flex items-center gap-2">
+                  <span className="bg-red-650 text-white rounded-full p-1 leading-none text-xs">HOT</span>
+                  [관리 개발자 전용] 환자 원부 정보 관리 센터 (Patient DB)
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  병원의 환자 기본 정보와 의료 참고사항(특이사항)을 통합 및 전용 보장하는 관리 화면입니다. 다른 일반/병원 관리자는 일체 접근할 수 없습니다.
+                </p>
+              </div>
+              <div className="bg-red-600 text-white px-3 py-1 rounded text-[11px] font-extrabold self-start sm:self-center flex items-center gap-1">
+                <Users size={12} />
+                등록된 환자 수: {patients.length}명
+              </div>
+            </div>
+
+            {patientAlert && (
+              <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 p-3 rounded text-xs font-bold animate-pulse">
+                {patientAlert}
+              </div>
+            )}
+
+            {/* Inner Bento Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Form: 등록 및 수정 양식 */}
+              <form onSubmit={handlePatientSubmit} className="lg:col-span-4 bg-white p-5 rounded-lg border border-gray-300 shadow-xs space-y-4">
+                <h4 className="text-base font-bold text-red-950 border-b border-lightgray pb-1">
+                  {editingPatientId ? "◆ 환자 정보 수정" : "◆ 신규 환자 등록"}
+                </h4>
+
+                {/* 이름 Input */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">이름 *</label>
+                  <input
+                    type="text"
+                    value={patName}
+                    onChange={(e) => setPatName(e.target.value)}
+                    placeholder="환자 성명 기입"
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* 생년월일 Input */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">생년월일 *</label>
+                  <input
+                    type="date"
+                    value={patBirthdate}
+                    onChange={(e) => setPatBirthdate(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs text-gray-800 font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* 연락처 Input */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">연락처 * (전화번호 혹은 이메일)</label>
+                  <input
+                    type="text"
+                    value={patContact}
+                    onChange={(e) => setPatContact(e.target.value)}
+                    placeholder="예: 010-1234-5678 또는 contact@mail.com"
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* 소속 선택 */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">환자 소속 의료기관 *</label>
+                  <select
+                    value={patAffiliation}
+                    onChange={(e) => setPatAffiliation(e.target.value as any)}
+                    className="w-full border border-gray-300 rounded px-2 bg-white py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs font-bold text-gray-850"
+                  >
+                    <option value="일반">일반 / 개인</option>
+                    <option value="해솔병원">해솔병원</option>
+                    <option value="청송대병원">청송대병원</option>
+                  </select>
+                </div>
+
+                {/* 특이사항 Notes */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">특이사항 / 진단의 소견 및 참고 메모</label>
+                  <textarea
+                    value={patNotes}
+                    onChange={(e) => setPatNotes(e.target.value)}
+                    placeholder="환자의 주요 증세나 진료 조율 일정 등을 적어주세요."
+                    rows={4}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs text-gray-750 font-normal leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex space-x-2 pt-2">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-red-650 hover:bg-red-750 text-white font-extrabold text-xs py-2 rounded shadow-sm text-center flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={12} />
+                    {editingPatientId ? "정보 수정 완료" : "환자 등록하기"}
+                  </button>
+                  {editingPatientId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingPatientId(null);
+                        setPatName('');
+                        setPatBirthdate('');
+                        setPatContact('');
+                        setPatAffiliation('일반');
+                        setPatNotes('');
+                      }}
+                      className="bg-gray-100 hover:bg-gray-250 border border-gray-300 text-gray-700 font-bold text-xs px-3 rounded"
+                    >
+                      취소
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Right Table: 환자 명단 및 명 검색 */}
+              <div className="lg:col-span-8 bg-white p-5 rounded-lg border border-gray-300 shadow-xs flex flex-col justify-between min-h-[460px]">
+                <div>
+                  {/* Search Bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b pb-2">
+                    <h4 className="text-sm font-bold text-gray-900">- 환자 마스터 데이터베이스</h4>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={patientSearch}
+                        onChange={(e) => setPatientSearch(e.target.value)}
+                        placeholder="이름, 병원, 특이사항 검색..."
+                        className="border border-gray-300 rounded px-2.5 py-1 text-xs font-semibold w-full sm:w-56 pr-8 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      />
+                      <Search size={14} className="absolute right-2.5 top-2 text-gray-400" />
+                    </div>
+                  </div>
+
+                  {/* List Grid / Table */}
+                  {filteredPatientsList.length === 0 ? (
+                    <div className="text-center py-24 text-gray-400 font-medium text-xs">
+                      검색 조건에 부합되거나 수집된 환자 데이터가 없습니다.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-red-50/50 text-[11px] font-bold text-red-950 border-b border-gray-250">
+                            <th className="py-2 px-3">환자명</th>
+                            <th className="py-2 px-3">생년월일</th>
+                            <th className="py-2 px-3">소속</th>
+                            <th className="py-2 px-3">연락처 (전화/이메일)</th>
+                            <th className="py-2 px-3">특이사항/메모</th>
+                            <th className="py-2 px-3 text-center w-24">작업</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-[11px]">
+                          {filteredPatientsList.map((pat) => (
+                            <tr key={pat.id} className="hover:bg-red-50/10 transition">
+                              <td className="py-2.5 px-3 font-extrabold text-gray-900">{pat.name}</td>
+                              <td className="py-2.5 px-3 text-gray-600 font-semibold">{pat.birthdate}</td>
+                              <td className="py-2.5 px-3">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
+                                  pat.affiliation === '해솔병원'
+                                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                    : pat.affiliation === '청송대병원'
+                                      ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                                      : 'bg-neutral-50 text-neutral-800 border border-neutral-200'
+                                }`}>
+                                  {pat.affiliation}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-gray-800 font-mono font-semibold">{pat.contact}</td>
+                              <td className="py-2.5 px-3 text-gray-600 font-medium max-w-[160px] truncate" title={pat.notes}>
+                                {pat.notes || '-'}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <div className="flex items-center justify-center space-x-1">
+                                  <button
+                                    onClick={() => handleTriggerEditPatient(pat)}
+                                    className="p-1 hover:bg-neutral-100 text-blue-600 rounded"
+                                    title="환자 수정"
+                                  >
+                                    <Edit size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleTriggerDeletePatient(pat.id)}
+                                    className="p-1 hover:bg-red-50 text-rose-600 rounded"
+                                    title="환자 삭제"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+            </div>
+
           </div>
         )}
 

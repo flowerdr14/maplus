@@ -185,9 +185,13 @@ export const ArticleDetailView: React.FC = () => {
   const handleArticleDelete = async () => {
     if (confirm('이 신문 기사를 완전히 삭제하시겠습니까?')) {
       const artId = article.id;
-      setSelectedArticleId(null);
-      setView('list');
-      await deleteArticle(artId);
+      try {
+        await deleteArticle(artId);
+        setSelectedArticleId(null);
+        setView('list');
+      } catch (err) {
+        alert("기사를 삭제하는 중 오류가 발생했습니다.");
+      }
     }
   };
 

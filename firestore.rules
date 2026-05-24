@@ -22,5 +22,10 @@ service cloud.firestore {
     match /comments/{commentId} {
       allow read, create, update, delete: if true;
     }
+
+    // 4. Patients 컬렉션 보안 규칙
+    match /patients/{patientId} {
+      allow read, create, update, delete: if true;
+    }
   }
 }

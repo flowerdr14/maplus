@@ -139,10 +139,14 @@ export const ArticleEditorView: React.FC = () => {
     if (editingArticleId) {
       if (confirm('정말로 이 기사 혹은 초안을 삭제하시겠습니까?')) {
         const idToDelete = editingArticleId;
-        setSelectedArticleId(null);
-        setEditingArticleId(null);
-        setView('list');
-        await deleteArticle(idToDelete);
+        try {
+          await deleteArticle(idToDelete);
+          setSelectedArticleId(null);
+          setEditingArticleId(null);
+          setView('list');
+        } catch (err) {
+          alert("기사를 삭제하는 중 오류가 발생했습니다.");
+        }
       }
     } else {
       // Clear fields for new

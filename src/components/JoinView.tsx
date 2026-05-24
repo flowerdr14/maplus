@@ -12,9 +12,10 @@ export const JoinView: React.FC = () => {
   const [idCheckedMsg, setIdCheckedMsg] = useState('');
   const [idError, setIdError] = useState(false);
   const [pw, setPw] = useState('');
-  const [phone, setPhone] = useState('');
+  const [contact, setContact] = useState('');
   const [role, setRole] = useState<'reader' | 'writer' | 'admin'>('reader');
   const [joinPath, setJoinPath] = useState('');
+  const [affiliation, setAffiliation] = useState<'일반' | '해솔병원' | '청송대병원'>('일반');
 
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -52,7 +53,7 @@ export const JoinView: React.FC = () => {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!name.trim() || !birthdate.trim() || !id.trim() || !pw.trim() || !phone.trim() || !joinPath.trim()) {
+    if (!name.trim() || !birthdate.trim() || !id.trim() || !pw.trim() || !contact.trim() || !joinPath.trim()) {
       setErrorMsg('모든 필수 항목을 기입해주시기 바랍니다.');
       return;
     }
@@ -72,7 +73,9 @@ export const JoinView: React.FC = () => {
       name: name.trim(),
       birthdate,
       password: pw,
-      phone: phone.trim(),
+      phone: contact.trim(), // for backward safety
+      contact: contact.trim(),
+      affiliation,
       role: 'reader' as const, // 일단 열람자로 가입
       joinPath: joinPath.trim(),
       ...(role !== 'reader' ? { adminRequest: 'pending' as const, requestedRole: role } : {})
@@ -189,17 +192,57 @@ export const JoinView: React.FC = () => {
             />
           </div>
 
-          {/* 전화번호 */}
+          {/* 연락처 */}
           <div className="flex items-center">
-            <label className="text-lg font-bold text-gray-800 w-24 text-right pr-3">전화번호:</label>
+            <label className="text-lg font-bold text-gray-800 w-24 text-right pr-3">연락처:</label>
             <input
               type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="전화번호를 입력하세요 (예: 010-1234-5678)"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="연락처를 입력하세요 (이메일 또는 전화번호 가능)"
               className="flex-1 border border-gray-400 rounded-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-gray-850"
-              id="join-phone-input"
+              id="join-contact-input"
             />
+          </div>
+
+          {/* 소속 */}
+          <div className="flex items-center">
+            <label className="text-lg font-bold text-gray-800 w-24 text-right pr-3">소속:</label>
+            <div className="flex items-center space-x-4 pl-2 flex-wrap gap-y-2">
+              <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="affiliation"
+                  value="일반"
+                  checked={affiliation === '일반'}
+                  onChange={() => setAffiliation('일반')}
+                  className="w-5 h-5 accent-orange-500 border border-black cursor-pointer"
+                />
+                <span className="text-gray-900 font-extrabold text-[17px] cursor-pointer">일반</span>
+              </label>
+              <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="affiliation"
+                  value="해솔병원"
+                  checked={affiliation === '해솔병원'}
+                  onChange={() => setAffiliation('해솔병원')}
+                  className="w-5 h-5 accent-orange-500 border border-black cursor-pointer"
+                />
+                <span className="text-gray-900 font-extrabold text-[17px] cursor-pointer">해솔병원</span>
+              </label>
+              <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="affiliation"
+                  value="청송대병원"
+                  checked={affiliation === '청송대병원'}
+                  onChange={() => setAffiliation('청송대병원')}
+                  className="w-5 h-5 accent-orange-500 border border-black cursor-pointer"
+                />
+                <span className="text-gray-900 font-extrabold text-[17px] cursor-pointer">청송대병원</span>
+              </label>
+            </div>
           </div>
 
           {/* 회원유형: 열람자 (reader) vs 작성자 (writer) vs 관리자 (admin) */}

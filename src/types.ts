@@ -40,9 +40,22 @@ export interface User {
   name: string;
   birthdate: string;
   password?: string;
-  phone: string;
+  phone?: string; // Backward compatibility fallback
+  contact: string; // 연락처 (전화번호 혹은 이메일)
   role: 'reader' | 'writer' | 'admin'; // 'reader' = 열람자, 'writer' = 작성자, 'admin' = 관리자
   joinPath: string;
   adminRequest?: 'pending' | 'approved' | 'rejected';
   requestedRole?: 'writer' | 'admin';
+  affiliation?: '일반' | '해솔병원' | '청송대병원'; // 소속: 일반, 해솔병원, 청송대병원
 }
+
+export interface Patient {
+  id: string;
+  name: string;
+  birthdate: string;
+  contact: string; // 연락처 (전화번호 혹은 이메일)
+  affiliation: '일반' | '해솔병원' | '청송대병원';
+  notes?: string;
+  createdAt: string;
+}
+
