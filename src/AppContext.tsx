@@ -19,8 +19,8 @@ export const getKSTTimestamp = () => {
 };
 
 interface AppContextType {
-  view: 'home' | 'login' | 'join' | 'list' | 'write' | 'detail' | 'mypage';
-  setView: (view: 'home' | 'login' | 'join' | 'list' | 'write' | 'detail' | 'mypage') => void;
+  view: 'home' | 'login' | 'join' | 'list' | 'write' | 'detail' | 'mypage' | 'hospital-home';
+  setView: (view: 'home' | 'login' | 'join' | 'list' | 'write' | 'detail' | 'mypage' | 'hospital-home') => void;
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
   users: User[];
@@ -214,40 +214,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // 4. Seed Patients if empty
-        const patientsSnap = await getDocs(collection(db, 'patients'));
-        if (patientsSnap.empty) {
-          const mockPatients: Patient[] = [
-            {
-              id: 'pat-1',
-              name: '김태희',
-              birthdate: '1980-03-29',
-              contact: '010-4444-5555',
-              affiliation: '해솔병원',
-              notes: '매주 목요일 오전 외래 진료 예정',
-              createdAt: getKSTTimestamp()
-            },
-            {
-              id: 'pat-2',
-              name: '이순신',
-              birthdate: '1975-08-15',
-              contact: '010-7777-8888',
-              affiliation: '청송대병원',
-              notes: '정밀 영상 검사 대기중',
-              createdAt: getKSTTimestamp()
-            },
-            {
-              id: 'pat-3',
-              name: '홍길동',
-              birthdate: '1992-12-25',
-              contact: 'hong@gmail.com',
-              affiliation: '일반',
-              notes: '건강검진 접수 대기',
-              createdAt: getKSTTimestamp()
-            }
-          ];
-          for (const pat of mockPatients) {
-            await setDoc(doc(db, 'patients', pat.id), cleanUndefined(pat));
+        // 4. Remove any and all pre-seeded example patients so that Patient DB is empty
+        const defaultPatientIds = ['pat-1', 'pat-2', 'pat-3'];
+        for (const pid of defaultPatientIds) {
+          try {
+            await deleteDoc(doc(db, 'patients', pid));
+          } catch (delErr) {
+            // ignore if already deleted or doesn't exist
           }
         }
       } catch (err) {

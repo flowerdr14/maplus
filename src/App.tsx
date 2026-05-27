@@ -14,9 +14,14 @@ import { ArticleListView } from './components/ArticleListView';
 import { ArticleEditorView } from './components/ArticleEditorView';
 import { ArticleDetailView } from './components/ArticleDetailView';
 import { MyPageView } from './components/MyPageView';
+import { HospitalHomepage } from './components/HospitalHomepage';
 
 function AppContent() {
   const { view } = useApp();
+
+  if (view === 'hospital-home') {
+    return <HospitalHomepage />;
+  }
 
   const renderActiveView = () => {
     switch (view) {

@@ -3,7 +3,7 @@ import { useApp } from '../AppContext';
 import { Award, BookOpen, AlertCircle, Sparkles, Mail } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { articles, setView, setSelectedArticleId, incrementViews } = useApp();
+  const { articles, setView, setSelectedArticleId, incrementViews, currentUser } = useApp();
 
   // Filter public (non-draft) articles and sort by views desc
   const publicArticles = articles.filter(art => !art.isDraft && !art.isPrivate);

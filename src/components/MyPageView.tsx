@@ -131,6 +131,10 @@ export const MyPageView: React.FC = () => {
       alert("자기 자신의 권한은 낮출 수 없습니다!");
       return;
     }
+    if (currentUser.affiliation === '해솔병원' || currentUser.affiliation === '청송대병원') {
+      alert("해솔병원 및 청송대병원 관리자는 회원을 하방시킬 권한이 없습니다.");
+      return;
+    }
     const updatedUsers = users.map(u => {
       if (u.id === userId) {
         return {
@@ -145,6 +149,10 @@ export const MyPageView: React.FC = () => {
   };
 
   const handlePromoteToWriter = (userId: string) => {
+    if (currentUser.affiliation === '해솔병원' || currentUser.affiliation === '청송대병원') {
+      alert("해솔병원 및 청송대병원 관리자는 회원을 승격시킬 권한이 없습니다.");
+      return;
+    }
     const updatedUsers = users.map(u => {
       if (u.id === userId) {
         return {
@@ -159,6 +167,10 @@ export const MyPageView: React.FC = () => {
   };
 
   const handlePromoteToAdmin = (userId: string) => {
+    if (currentUser.affiliation === '해솔병원' || currentUser.affiliation === '청송대병원') {
+      alert("해솔병원 및 청송대병원 관리자는 회원을 승격시킬 권한이 없습니다.");
+      return;
+    }
     const updatedUsers = users.map(u => {
       if (u.id === userId) {
         return {
@@ -502,7 +514,7 @@ export const MyPageView: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">
                   {currentUser.id === 'admin' 
                     ? '플랫폼의 모든 회원을 관리하고 등급을 조율할 수 있습니다.' 
-                    : `소속(${currentUser.affiliation || '일반'}) 회원들의 가입 및 등급 승인 신청을 전담하여 승인할 수 있습니다.`}
+                    : `소속(${currentUser.affiliation || '일반'}) 회원들의 가입 및 등급 승인 신청을 전담하여 승인할 수 있습니다. (※ 단, 청송대병원 및 해솔병원 관리자는 가입 승인 외의 임의 승격/하방 관리가 제한됩니다)`}
                 </p>
               </div>
               <div className="bg-black text-white px-3 py-1 rounded text-[11px] font-extrabold self-start sm:self-center flex items-center gap-1">
@@ -595,35 +607,43 @@ export const MyPageView: React.FC = () => {
                                 </button>
                               </>
                             ) : u.role !== 'reader' ? (
-                              <button
-                                onClick={() => handleDemoteToReader(u.id)}
-                                disabled={u.id === currentUser.id}
-                                className={`text-[10px] font-extrabold px-2 py-1 rounded border shadow-xs transition ${
-                                  u.id === currentUser.id
-                                    ? 'bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed'
-                                    : 'bg-white hover:bg-red-50 text-red-600 border-red-300'
-                                }`}
-                                title="열람자 등급으로 권한 축소"
-                              >
-                                {u.id === currentUser.id ? '본인 계정' : '열람자로 하방'}
-                              </button>
+                              currentUser.affiliation === '해솔병원' || currentUser.affiliation === '청송대병원' ? (
+                                <span className="text-gray-300 font-bold text-[10px]" title="해솔/청송대 관리자는 회원 수동 하방 권한이 없습니다">-</span>
+                              ) : (
+                                <button
+                                  onClick={() => handleDemoteToReader(u.id)}
+                                  disabled={u.id === currentUser.id}
+                                  className={`text-[10px] font-extrabold px-2 py-1 rounded border shadow-xs transition ${
+                                    u.id === currentUser.id
+                                      ? 'bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed'
+                                      : 'bg-white hover:bg-red-50 text-red-600 border-red-300'
+                                  }`}
+                                  title="열람자 등급으로 권한 축소"
+                                >
+                                  {u.id === currentUser.id ? '본인 계정' : '열람자로 하방'}
+                                </button>
+                              )
                             ) : (
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => handlePromoteToWriter(u.id)}
-                                  className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 font-extrabold text-[10px] px-2 py-1 rounded shadow-xs transition"
-                                  title="작성자 등급으로 직위 승격"
-                                >
-                                  작성자 승격
-                                </button>
-                                <button
-                                  onClick={() => handlePromoteToAdmin(u.id)}
-                                  className="bg-white hover:bg-orange-50 text-orange-600 border border-orange-300 font-extrabold text-[10px] px-2 py-1 rounded shadow-xs transition"
-                                  title="관리자 등급으로 직위 승격"
-                                >
-                                  관리자 승격
-                                </button>
-                              </div>
+                              currentUser.affiliation === '해솔병원' || currentUser.affiliation === '청송대병원' ? (
+                                <span className="text-gray-300 font-bold text-[10px]" title="해솔/청송대 관리자는 회원 수동 승격 권한이 없습니다">-</span>
+                              ) : (
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handlePromoteToWriter(u.id)}
+                                    className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 font-extrabold text-[10px] px-2 py-1 rounded shadow-xs transition"
+                                    title="작성자 등급으로 직위 승격"
+                                  >
+                                    작성자 승격
+                                  </button>
+                                  <button
+                                    onClick={() => handlePromoteToAdmin(u.id)}
+                                    className="bg-white hover:bg-orange-50 text-orange-600 border border-orange-300 font-extrabold text-[10px] px-2 py-1 rounded shadow-xs transition"
+                                    title="관리자 등급으로 직위 승격"
+                                  >
+                                    관리자 승격
+                                  </button>
+                                </div>
+                              )
                             )}
                           </div>
                         </td>
